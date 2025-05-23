@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\RegisterStoreRequest;
 use App\Http\Resources\UserResource;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -73,4 +77,37 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
+    public function register(RegisterStoreRequest $request)
+    {
+        $data = $request->validated();
+
+        DB::beginTransaction();
+
+        try {
+            $user = new User();
+            $user->name = $data['name'];
+            $user->email = $data['email'];
+            $user->password = Hash::make($data['password']);
+            $user->save();
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Register Successful',
+                'data' => [
+                    'token' => $token,
+                    'user' => new UserResource($user)
+                ]
+                ], 201);
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => 'Register Failed',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }
